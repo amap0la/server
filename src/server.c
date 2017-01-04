@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#include "devidd_ctl.h"
+#include "server.h"
 #include "error_handler.h"
 
 
@@ -56,7 +56,8 @@ int32_t serv_bind(int32_t sock_fd)
   return DEVIDD_SUCCESS;
 }
 
-int32_t serv_recv(int32_t sock_fd, char **buf)
+int32_t serv_recv(int32_t sock_fd, char **buf,
+                  struct sockaddr_in *client_addr)
 {
 
   int32_t r = 0; /* Return value for recvfrom() */
@@ -82,7 +83,8 @@ int32_t serv_recv(int32_t sock_fd, char **buf)
 
 }
 
-int32_t serv_send(int32_t sock_fd, char **buf)
+int32_t serv_send(int32_t sock_fd, char **buf,
+                  struct sockaddr_in *client_addr)
 {  
   int32_t s = 0; /* Return value for sendto() */
 
@@ -103,10 +105,19 @@ int32_t serv_send(int32_t sock_fd, char **buf)
 }
 
 
-int32_t serv_core(struct sockaddr_in client_addr)
+int32_t serv_core(struct sockaddr_in *client_addr)
 {
   int32_t sock_fd = 0; /* Server socket */
-  char buf[BUF_LEN]; /* Buffer received from the client */
+  char *buf; /* Buffer received from the client */
+
+  buf = malloc(BUF_LEN);
+  if (!buf)
+  {
+    syslog(LOG_ERR, "%s, %d: Memory allocation error",
+           basename(__FILE__), __LINE__);
+
+    return DEVIDD_ERR_MEM;
+  }
 
   /* Create socket for server and bind it */
   if ((serv_socket(sock_fd) != DEVIDD_SUCCESS)
@@ -117,14 +128,14 @@ int32_t serv_core(struct sockaddr_in client_addr)
 
   while(1)
   {
-    if (serv_recv(sock_fd, &buf) != DEVIDD_SUCCESS)
+    if (serv_recv(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
       return DEVIDD_ERR;
     }
 
     /* FIXME: treatment */
 
-    if (serv_sendto(sock_fd, &buf) != DEVIDD_SUCCESS)
+    if (serv_sendto(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
       return DEVIDD_ERR;
     }
@@ -144,8 +155,11 @@ int32_t serv_core(struct sockaddr_in client_addr)
 
 int main(int argc, char **argv)
 {
+  sockaddr_in *client_addr;
   if (serv_core(client_addr) != DEVIDD_SUCCESS)
+  {
     return DEVIDD_ERR;
+  }
 
   return 0;
 }
