@@ -1,3 +1,5 @@
+# define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -5,11 +7,13 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <sys/stat.h>
 
-#include "devidd_ctl.h"
+#include "client.h"
 #include "error_handler.h"
+
 
 int32_t client_socket(int32_t sock_fd)
 {
@@ -27,41 +31,46 @@ int32_t client_socket(int32_t sock_fd)
 
 }
 
-int32_t client_bind(int32_t sock_fd)
+int32_t client_bind(int32_t sock_fd, struct sockaddr_in *serv_addr)
 {
   int32_t b; /* Return value for bind() */
-  struct sockaddr_in client_addr; /* Adress to bind client socket */
+  int32_t i; /* Return value for inet_aton() */ 
+  
+  /* Declare struct serv_addr which will contain the sock_fd adress */
+  memset(serv_addr, 0, sizeof (*serv_addr));
+  (*serv_addr).sin_family = AF_INET;
+  (*serv_addr).sin_port = htons(SERV_PORT);
+  i = inet_aton(SERV_ADDR, &(*serv_addr).sin_addr);
+  if (i == 0)
+  {
+    syslog(LOG_ERR, "%s, %d: Cannot convert server address string \
+           into binary address", basename(__FILE__), __LINE__);
 
-  /* Declare struct clien_addr which will contain the sock_fd adress */
-  memset(&client_addr, 0, sizeof (client_addr));
-  client_addr.sin_family = AF_INET;
-  client_addr.sin_port = htons(SERV_PORT);
-  client_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    return DEVIDD_ERR;
+  }
 
   /* Bind sock_fd with this address */
-  b = bind(sock_fd, (struct sockaddr *) &client_addr,
-      sizeof(client_addr));
+  b = bind(sock_fd, (struct sockaddr *) serv_addr,
+      sizeof(*serv_addr));
 
   if (b < 0)
   {
-    syslog(LOG_ERR, "%s, %d: Cannot bind socket for client", 
+    syslog(LOG_ERR, "%s, %d: Cannot bind socket in client", 
            basename(__FILE__), __LINE__);
+    
     return DEVIDD_ERR;
   }
 
   return DEVIDD_SUCCESS;
 }
 
-int32_t client_send()
+int32_t client_send(int32_t sock_fd, char **buf, struct sockaddr_in *serv_addr)
 {
   int32_t s; /* Return value for sendto() */
 
-
-
-
   /* Send to server */
   s = sendto(sock_fd, buf, BUF_LEN, 0,
-      (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+      (struct sockaddr *) serv_addr, sizeof(*serv_addr));
 
   if (s < 0)
   {
@@ -73,15 +82,14 @@ int32_t client_send()
   return DEVIDD_SUCCESS;
 }
 
-int32_t client_recv()
+int32_t client_recv(int32_t sock_fd, char **buf, struct sockaddr_in *serv_addr)
 {
   int32_t r; /* Return value for recvfrom() */
-  uint32_t size_serv = sizeof (serv_addr); /* Size of serv_addr */
-
+  uint32_t len = sizeof (*serv_addr);
 
   /* Receive from server */ 
   r = recvfrom(sock_fd, buf, BUF_LEN, 0,
-      (struct sockaddr *) &serv_addr, &size_serv);
+      (struct sockaddr *) serv_addr, &len);
 
   if (r < 0)
   {
@@ -94,26 +102,36 @@ int32_t client_recv()
 }
 
 
-int32_t core_client(struct sockaddr_in serv_addr)
+int32_t client_core(void)
 {
-  int32_t sock_fd; /* Client socket */ 
-  char buf[BUF_LEN]; /* */
+  int32_t sock_fd = 0; /* Client socket */ 
+  struct sockaddr_in *serv_addr = NULL;  
+  char *buf = NULL;
+
+  buf = malloc(BUF_LEN);
+  if (!buf)
+  {
+    syslog(LOG_ERR, "%s, %d: Cannot close client socket",
+           basename(__FILE__), __LINE__);
+
+    return DEVIDD_ERR_MEM;
+  }
 
   /* Create client socket and bind it */
   if ((client_socket(sock_fd) != DEVIDD_SUCCESS)
-      || client_bind(sock_fd) != DEVIDD_SUCCESS)
+      || (client_bind(sock_fd, serv_addr) != DEVIDD_SUCCESS))
   {
     return DEVIDD_ERR;   
   }
 
   while(1)
   {
-    if (client_send(sock_fd, &buf) != DEVIDD_SUCCESS)
+    if (client_send(sock_fd, &buf, serv_addr) != DEVIDD_SUCCESS)
     {
       return DEVIDD_ERR;
     }
 
-    if (client_recv(sock_fd, &buf) != DEVIDD_SUCCESS)
+    if (client_recv(sock_fd, &buf, serv_addr) != DEVIDD_SUCCESS)
     {
       return DEVIDD_ERR;
     }
@@ -125,16 +143,16 @@ int32_t core_client(struct sockaddr_in serv_addr)
   {
     syslog(LOG_ERR, "%s, %d: Cannot close client socket",
            basename(__FILE__), __LINE__);
+
     return DEVIDD_ERR;
   }
 
   return DEVIDD_SUCCESS;
 }
 
-int main(int argc, char **argv)
+int main(void) /* FIXME */
 {
-  
-  if (core_client(serv_addr))
+  if (client_core())
     return DEVIDD_ERR;
 
   return 0;
