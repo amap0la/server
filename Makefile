@@ -1,15 +1,19 @@
-CC=gcc
+CC?=gcc
 CFLAGS=-Werror -Wextra -Wall -pedantic -std=c99
-SRC=src/devidd_ctl.c
-OBJ= ${SRC:.c=.o}
-PROJECT=devidd_ctl
+SRC_SERVER=src/server.c src/daemonize.c
+SRC_CLIENT=src/client.c
+OBJ_SERVER= ${SRC_SERVER:.c=.o}
+OBJ_CLIENT= ${SRC_CLIENT:.c=.o}
 
-all: $(PROJECT)
+all: client server
 
-$(PROJECT): $(OBJ)
+client: $(OBJ_CLIENT)
+	$(CC) $(LFLAGS) $(CFLAGS) $^ -o $@
+
+server: $(OBJ_SERVER)
 	$(CC) $(LFLAGS) $(CFLAGS) $^ -o $@
 
 clean:
-	rm -f $(OBJ) $(PROJECT)
+	rm -f *.o client server
 
 .PHONY: clean
