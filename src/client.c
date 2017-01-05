@@ -128,11 +128,13 @@ int32_t client_core(void)
   {
     if (client_send(sock_fd, &buf, serv_addr) != DEVIDD_SUCCESS)
     {
+      free(buf);
       return DEVIDD_ERR;
     }
 
     if (client_recv(sock_fd, &buf, serv_addr) != DEVIDD_SUCCESS)
     {
+      free(buf);
       return DEVIDD_ERR;
     }
 
@@ -157,10 +159,4 @@ int main(void) /* FIXME */
 
   return 0;
 }
-
-
-
-
-
-
 

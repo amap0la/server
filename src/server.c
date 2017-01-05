@@ -110,7 +110,14 @@ int32_t serv_core(struct sockaddr_in *client_addr)
   int32_t sock_fd = 0; /* Server socket */
   char *buf; /* Buffer received from the client */
 
-  buf = malloc(BUF_LEN);
+  /* Create socket for server and bind it */
+  if ((serv_socket(sock_fd) != DEVIDD_SUCCESS)
+      || (serv_bind(sock_fd) != DEVIDD_SUCCESS))
+  {
+    return DEVIDD_ERR;
+  }
+
+  buf = calloc(1, BUF_LEN);
   if (!buf)
   {
     syslog(LOG_ERR, "%s, %d: Memory allocation error",
@@ -119,28 +126,28 @@ int32_t serv_core(struct sockaddr_in *client_addr)
     return DEVIDD_ERR_MEM;
   }
 
-  /* Create socket for server and bind it */
-  if ((serv_socket(sock_fd) != DEVIDD_SUCCESS)
-      || (serv_bind(sock_fd) != DEVIDD_SUCCESS))
-  {
-    return DEVIDD_ERR;
-  }
-
   while(1)
   {
+    printf("[SERVER] Buffer before reception: %s", buf);
     if (serv_recv(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
+      free(buf);
       return DEVIDD_ERR;
     }
 
     /* FIXME: treatment */
+    
+    printf("[SERVER] Buffer sent to client: %s", buf);
 
-    if (serv_sendto(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
+    if (serv_send(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
+      free(buf);
       return DEVIDD_ERR;
     }
 
   }
+
+  free(buf);
 
   if (close(sock_fd) < 0)
   {
@@ -153,9 +160,9 @@ int32_t serv_core(struct sockaddr_in *client_addr)
 }
 
 
-int main(int argc, char **argv)
+int main(void) /* FIXME */
 {
-  sockaddr_in *client_addr;
+  struct sockaddr_in *client_addr = NULL;
   if (serv_core(client_addr) != DEVIDD_SUCCESS)
   {
     return DEVIDD_ERR;
