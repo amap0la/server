@@ -18,10 +18,10 @@
  *
  */
 
-int32_t serv_socket(int32_t sock_fd)
+int32_t serv_socket(int32_t *sock_fd)
 {
-  sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock_fd < 0)
+  *sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (*sock_fd < 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot create socket for server",
            basename(__FILE__), __LINE__);
@@ -32,7 +32,7 @@ int32_t serv_socket(int32_t sock_fd)
 }
 
 
-int32_t serv_bind(int32_t sock_fd)
+int32_t serv_bind(int32_t *sock_fd)
 {
   struct sockaddr_in serv_addr; /* Address to bind server socket */
   int32_t b = 0; /* Return value for bind() */
@@ -44,7 +44,7 @@ int32_t serv_bind(int32_t sock_fd)
   serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
   /* Bind sock_fd with this address */
-  b = bind(sock_fd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+  b = bind(*sock_fd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
 
   if (b < 0)
   {
@@ -56,7 +56,7 @@ int32_t serv_bind(int32_t sock_fd)
   return DEVIDD_SUCCESS;
 }
 
-int32_t serv_recv(int32_t sock_fd, char **buf,
+int32_t serv_recv(int32_t *sock_fd, char **buf,
                   struct sockaddr_in *client_addr)
 {
 
@@ -66,7 +66,7 @@ int32_t serv_recv(int32_t sock_fd, char **buf,
   /* Receive data from client
      - blocks until datagram received from the client */
 
-  r = recvfrom(sock_fd, buf, BUF_LEN, 0,
+  r = recvfrom(*sock_fd, buf, BUF_LEN, 0,
       (struct sockaddr *) &client_addr,
       &size_client);
 
@@ -77,19 +77,20 @@ int32_t serv_recv(int32_t sock_fd, char **buf,
            basename(__FILE__), __LINE__);
     return DEVIDD_ERR;
   }
-  buf[r] = '\0';
+  
+  /* buf[r] = '\0'; */
 
   return DEVIDD_SUCCESS;
 
 }
 
-int32_t serv_send(int32_t sock_fd, char **buf,
+int32_t serv_send(int32_t *sock_fd, char **buf,
                   struct sockaddr_in *client_addr)
 {  
   int32_t s = 0; /* Return value for sendto() */
 
   /* Send data to the client */
-  s = sendto(sock_fd, buf, BUF_LEN, 0,
+  s = sendto(*sock_fd, buf, BUF_LEN, 0,
       (struct sockaddr *) &client_addr,
       sizeof(client_addr));
 
@@ -111,8 +112,8 @@ int32_t serv_core(struct sockaddr_in *client_addr)
   char *buf; /* Buffer received from the client */
 
   /* Create socket for server and bind it */
-  if ((serv_socket(sock_fd) != DEVIDD_SUCCESS)
-      || (serv_bind(sock_fd) != DEVIDD_SUCCESS))
+  if ((serv_socket(&sock_fd) != DEVIDD_SUCCESS)
+      || (serv_bind(&sock_fd) != DEVIDD_SUCCESS))
   {
     return DEVIDD_ERR;
   }
@@ -128,8 +129,8 @@ int32_t serv_core(struct sockaddr_in *client_addr)
 
   while(1)
   {
-    printf("[SERVER] Buffer before reception: %s", buf);
-    if (serv_recv(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
+    /* syslog(LOG_ERR, "[SERVER] Buffer before reception: %s", buf);*/
+    if (serv_recv(&sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
       return DEVIDD_ERR;
@@ -137,9 +138,9 @@ int32_t serv_core(struct sockaddr_in *client_addr)
 
     /* FIXME: treatment */
     
-    printf("[SERVER] Buffer sent to client: %s", buf);
+    //syslog(LOG_ERR, "[SERVER] Buffer sent to client: %s", buf);
 
-    if (serv_send(sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
+    if (serv_send(&sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
       return DEVIDD_ERR;
