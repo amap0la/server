@@ -1,4 +1,4 @@
-# define _BSD_SOURCE
+# define _DEFAULT_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,12 +133,14 @@ int32_t client_core(void)
     if (client_send(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
+      printf("send error\n");
       return DEVIDD_ERR;
     }
 
     if (client_recv(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
+      printf("recv error");
       return DEVIDD_ERR;
     }
 

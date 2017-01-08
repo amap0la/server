@@ -32,22 +32,22 @@ int32_t serv_socket(int32_t *sock_fd)
 }
 
 
-int32_t serv_bind(int32_t *sock_fd)
+int32_t serv_bind(int32_t *sock_fd, struct sockaddr_in *serv_addr)
 {
-  struct sockaddr_in serv_addr; /* Address to bind server socket */
   int32_t b = 0; /* Return value for bind() */
 
   /* Declare struct serv_addr which will contain the sock_fd address */
-  memset(&serv_addr, 0, sizeof(serv_addr)); /* FIXME: BSD: bzero */
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(SERV_PORT);
-  serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  memset(serv_addr, 0, sizeof(*serv_addr)); /* FIXME: BSD: bzero */
+  serv_addr->sin_family = AF_INET;
+  serv_addr->sin_port = htons(SERV_PORT);
+  serv_addr->sin_addr.s_addr = htonl(INADDR_ANY);
 
   /* Bind sock_fd with this address */
-  b = bind(*sock_fd, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+  b = bind(*sock_fd, (struct sockaddr*) serv_addr, sizeof(*serv_addr));
 
   if (b < 0)
   {
+    printf("[serv_bind]:%s\n", strerror(errno));
     syslog(LOG_ERR, "%s, %d: Cannot bind server socket",
            basename(__FILE__), __LINE__);
     return DEVIDD_ERR;
@@ -57,18 +57,18 @@ int32_t serv_bind(int32_t *sock_fd)
 }
 
 int32_t serv_recv(int32_t *sock_fd, char **buf,
-                  struct sockaddr_in *client_addr)
+                  struct sockaddr_in *serv_addr)
 {
 
   int32_t r = 0; /* Return value for recvfrom() */
-  uint32_t size_client = sizeof (client_addr); /* Size of client_addr */
+  uint32_t size_serv = sizeof (serv_addr); /* Size of serv_addr */
 
   /* Receive data from client
      - blocks until datagram received from the client */
 
-  r = recvfrom(*sock_fd, buf, BUF_LEN, 0,
-      (struct sockaddr *) &client_addr,
-      &size_client);
+  r = recvfrom(*sock_fd, *buf, BUF_LEN, 0,
+      (struct sockaddr *) serv_addr,
+      &size_serv);
 
   /* Handle recvfrom() failure */
   if (r < 0)
@@ -85,18 +85,19 @@ int32_t serv_recv(int32_t *sock_fd, char **buf,
 }
 
 int32_t serv_send(int32_t *sock_fd, char **buf,
-                  struct sockaddr_in *client_addr)
+                  struct sockaddr_in *serv_addr)
 {  
   int32_t s = 0; /* Return value for sendto() */
-
+  uint32_t size_serv = sizeof (*serv_addr);
   /* Send data to the client */
-  s = sendto(*sock_fd, buf, BUF_LEN, 0,
-      (struct sockaddr *) &client_addr,
-      sizeof(client_addr));
+  s = sendto(*sock_fd, *buf, BUF_LEN, 0,
+      (struct sockaddr *) serv_addr,
+      size_serv);
 
   /* Handle sendto() failure */
   if (s < 0)
   {
+    printf("[serv_send]:%s\n", strerror(errno));
     syslog(LOG_ERR, "%s, %d: Cannot send from server to client",
            basename(__FILE__), __LINE__);
     return DEVIDD_ERR;
@@ -106,14 +107,15 @@ int32_t serv_send(int32_t *sock_fd, char **buf,
 }
 
 
-int32_t serv_core(struct sockaddr_in *client_addr)
+int32_t serv_core(void)
 {
   int32_t sock_fd = 0; /* Server socket */
   char *buf; /* Buffer received from the client */
+  struct sockaddr_in serv_addr; /* Server address */
 
   /* Create socket for server and bind it */
   if ((serv_socket(&sock_fd) != DEVIDD_SUCCESS)
-      || (serv_bind(&sock_fd) != DEVIDD_SUCCESS))
+      || (serv_bind(&sock_fd, &serv_addr) != DEVIDD_SUCCESS))
   {
     return DEVIDD_ERR;
   }
@@ -130,7 +132,7 @@ int32_t serv_core(struct sockaddr_in *client_addr)
   while(1)
   {
     /* syslog(LOG_ERR, "[SERVER] Buffer before reception: %s", buf);*/
-    if (serv_recv(&sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
+    if (serv_recv(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
       return DEVIDD_ERR;
@@ -140,7 +142,7 @@ int32_t serv_core(struct sockaddr_in *client_addr)
     
     //syslog(LOG_ERR, "[SERVER] Buffer sent to client: %s", buf);
 
-    if (serv_send(&sock_fd, &buf, client_addr) != DEVIDD_SUCCESS)
+    if (serv_send(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
     {
       free(buf);
       return DEVIDD_ERR;
@@ -163,8 +165,7 @@ int32_t serv_core(struct sockaddr_in *client_addr)
 
 int main(void) /* FIXME */
 {
-  struct sockaddr_in *client_addr = NULL;
-  if (serv_core(client_addr) != DEVIDD_SUCCESS)
+  if (serv_core() != DEVIDD_SUCCESS)
   {
     return DEVIDD_ERR;
   }
