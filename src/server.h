@@ -17,4 +17,4 @@ int32_t serv_send(int32_t *sock_fd, char **buf,
 int32_t serv_core(void);
 
 
-#endif // !SERVER_H
+#endif /* !SERVER_H */
