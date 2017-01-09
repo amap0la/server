@@ -1,3 +1,5 @@
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -139,6 +141,8 @@ int32_t serv_core(void)
     }
 
     /* FIXME: treatment */
+    printf("Client: %s\n", buf);
+    buf = strdup("Because.");
     
     //syslog(LOG_ERR, "[SERVER] Buffer sent to client: %s", buf);
 

@@ -23,7 +23,7 @@ int32_t client_socket(int32_t *sock_fd)
   if (*sock_fd < 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot create socket for client", 
-           basename(__FILE__), __LINE__);
+        basename(__FILE__), __LINE__);
     return DEVIDD_ERR;
   }
 
@@ -37,7 +37,7 @@ int32_t client_bind(int32_t *sock_fd, struct sockaddr_in *serv_addr)
   /*int32_t b; Return value for bind() */
   int32_t i; /* Return value for inet_aton() */
   sock_fd = sock_fd; 
-  
+
   /* Declare struct serv_addr which will contain the sock_fd adress */
   memset(serv_addr, 0, sizeof (*serv_addr));
   serv_addr->sin_family = AF_INET;
@@ -46,22 +46,22 @@ int32_t client_bind(int32_t *sock_fd, struct sockaddr_in *serv_addr)
   if (i == 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot convert server address string \
-           into binary address", basename(__FILE__), __LINE__);
+        into binary address", basename(__FILE__), __LINE__);
 
     return DEVIDD_ERR;
   }
 
   /* Bind sock_fd with this address
-  b = bind(*sock_fd, (struct sockaddr *) serv_addr,
-      sizeof(*serv_addr));
+     b = bind(*sock_fd, (struct sockaddr *) serv_addr,
+     sizeof(*serv_addr));
 
-  if (b < 0)
-  {
-    syslog(LOG_ERR, "%s, %d: Cannot bind socket in client", 
-           basename(__FILE__), __LINE__);
-    
-    return DEVIDD_ERR;
-  } */
+     if (b < 0)
+     {
+     syslog(LOG_ERR, "%s, %d: Cannot bind socket in client", 
+     basename(__FILE__), __LINE__);
+
+     return DEVIDD_ERR;
+     } */
 
   return DEVIDD_SUCCESS;
 }
@@ -70,7 +70,7 @@ int32_t client_send(int32_t *sock_fd, char **buf, struct sockaddr_in *serv_addr)
 {
   int32_t s; /* Return value for sendto() */
 
-  *buf = strdup("toto");
+  *buf = strdup("why?\n");
 
   /* Send to server */
   s = sendto(*sock_fd, *buf, BUF_LEN, 0,
@@ -79,7 +79,7 @@ int32_t client_send(int32_t *sock_fd, char **buf, struct sockaddr_in *serv_addr)
   if (s < 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot send from client to server // %s",
-           basename(__FILE__), __LINE__, strerror(errno));
+        basename(__FILE__), __LINE__, strerror(errno));
     return DEVIDD_ERR;
   }
 
@@ -98,7 +98,7 @@ int32_t client_recv(int32_t *sock_fd, char **buf, struct sockaddr_in *serv_addr)
   if (r < 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot receive from server to client",
-           basename(__FILE__), __LINE__);
+        basename(__FILE__), __LINE__);
     return DEVIDD_ERR;
   }
 
@@ -116,7 +116,7 @@ int32_t client_core(void)
   if (!buf)
   {
     syslog(LOG_ERR, "%s, %d: Cannot close client socket",
-           basename(__FILE__), __LINE__);
+        basename(__FILE__), __LINE__);
 
     return DEVIDD_ERR_MEM;
   }
@@ -128,29 +128,27 @@ int32_t client_core(void)
     return DEVIDD_ERR;   
   }
 
-  while(1)
+  if (client_send(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
   {
-    if (client_send(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
-    {
-      free(buf);
-      printf("send error\n");
-      return DEVIDD_ERR;
-    }
-
-    if (client_recv(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
-    {
-      free(buf);
-      printf("recv error");
-      return DEVIDD_ERR;
-    }
-
+    free(buf);
+    printf("send error\n");
+    return DEVIDD_ERR;
   }
+
+  if (client_recv(&sock_fd, &buf, &serv_addr) != DEVIDD_SUCCESS)
+  {
+    free(buf);
+    printf("recv error");
+    return DEVIDD_ERR;
+  }
+
+  printf("Server: %s\n", buf);
 
   /* Close */
   if (close(sock_fd) < 0)
   {
     syslog(LOG_ERR, "%s, %d: Cannot close client socket",
-           basename(__FILE__), __LINE__);
+        basename(__FILE__), __LINE__);
 
     return DEVIDD_ERR;
   }
